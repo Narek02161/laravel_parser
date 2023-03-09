@@ -1,0 +1,41 @@
+FROM php:8.1.9-fpm-bullseye
+
+# Основные зависимости
+RUN docker-php-ext-configure opcache --enable-opcache && \
+    docker-php-ext-install pdo pdo_mysql && \
+    apt -y update && \
+    apt -y install nginx unzip git
+
+WORKDIR /var/www/html
+
+## Установка composer
+COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
+
+# Копируем файлы
+COPY --chown=www-data:www-data . /var/www/html
+
+# Конфиг nginx
+COPY ./nginx/default.dev.conf /etc/nginx/sites-available/default
+
+# Зависимости composer
+RUN composer install
+
+# Уборка
+RUN php artisan config:clear && \
+    rm -rf env_key && \
+    rm -rf env && \
+    rm -rf index.nginx-debian.html && \
+    rm -rf nginx && \
+    rm -rf Docker* && \
+    rm -rf docker* && \
+
+# Правильные права на файлы и папки
+# На index.php вешаем read-only
+RUN find . -type f -exec chmod 664 {} \; && \
+        find . -type d -exec chmod 775 {} \; && \
+        chmod 0444 public/index.php && \
+        chmod -R ug+rwx storage bootstrap/cache
+
+EXPOSE 80
+
+CMD nginx; php-fpm;

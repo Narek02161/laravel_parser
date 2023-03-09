@@ -1,0 +1,50 @@
+version: '3'
+services:
+    parser-server-php:
+        container_name: parser-server-php
+        hostname: parser-server-php
+        restart: unless-stopped
+        build:
+            context: ./
+            dockerfile: Dockerfile
+        volumes:
+            - .:/var/www/html
+        networks:
+            - parser-server-network
+        depends_on:
+            - parser-server-mariadb
+
+    parser-server-nginx:
+        image: nginx:1.23.1-alpine
+        container_name: parser-server-nginx
+        restart: unless-stopped
+        tty: true
+        ports:
+            - "8080:80"
+        volumes:
+            - ./:/var/www/html
+            - ./nginx/:/etc/nginx/conf.d/
+        networks:
+            - parser-server-network
+        depends_on:
+            - parser-server-php
+
+    parser-server-mariadb:
+        image: mariadb:10
+        container_name: parser-mariadb
+        restart: unless-stopped
+        tty: true
+        ports:
+            - "3307:3306"
+        environment:
+            MARIADB_USER: parser
+            MARIADB_PASSWORD: secret
+            MARIADB_DATABASE: parser
+            MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+        networks:
+            - parser-server-network
+        hostname: parser-mariadb
+
+networks:
+    parser-server-network:
+        driver: bridge
